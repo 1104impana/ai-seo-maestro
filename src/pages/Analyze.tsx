@@ -6,6 +6,7 @@ import { ScoreGauge } from "@/components/ScoreGauge";
 import { IssueList } from "@/components/IssueList";
 import { SuggestionList } from "@/components/SuggestionList";
 import { MetricCard } from "@/components/MetricCard";
+import { AutonomousFix } from "@/components/AutonomousFix";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
