@@ -114,6 +114,10 @@ const AnalyzePage = () => {
                 <SuggestionList suggestions={result.suggestions} />
               </TabsContent>
 
+              <TabsContent value="fixes" className="mt-4">
+                <AutonomousFix analysisResult={result} />
+              </TabsContent>
+
               <TabsContent value="aeo" className="mt-4">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Card>
