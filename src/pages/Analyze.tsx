@@ -101,6 +101,7 @@ const AnalyzePage = () => {
                 <TabsTrigger value="issues">Issues ({result.issues.length})</TabsTrigger>
                 <TabsTrigger value="suggestions">AI Suggestions</TabsTrigger>
                 <TabsTrigger value="aeo">AEO Details</TabsTrigger>
+                <TabsTrigger value="fixes">🔧 Autonomous Fix</TabsTrigger>
                 <TabsTrigger value="charts">Charts</TabsTrigger>
                 <TabsTrigger value="meta">Page Meta</TabsTrigger>
               </TabsList>
