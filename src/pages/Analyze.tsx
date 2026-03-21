@@ -6,6 +6,7 @@ import { ScoreGauge } from "@/components/ScoreGauge";
 import { IssueList } from "@/components/IssueList";
 import { SuggestionList } from "@/components/SuggestionList";
 import { MetricCard } from "@/components/MetricCard";
+import { AutonomousFix } from "@/components/AutonomousFix";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -100,6 +101,7 @@ const AnalyzePage = () => {
                 <TabsTrigger value="issues">Issues ({result.issues.length})</TabsTrigger>
                 <TabsTrigger value="suggestions">AI Suggestions</TabsTrigger>
                 <TabsTrigger value="aeo">AEO Details</TabsTrigger>
+                <TabsTrigger value="fixes">🔧 Autonomous Fix</TabsTrigger>
                 <TabsTrigger value="charts">Charts</TabsTrigger>
                 <TabsTrigger value="meta">Page Meta</TabsTrigger>
               </TabsList>
@@ -110,6 +112,10 @@ const AnalyzePage = () => {
 
               <TabsContent value="suggestions" className="mt-4">
                 <SuggestionList suggestions={result.suggestions} />
+              </TabsContent>
+
+              <TabsContent value="fixes" className="mt-4">
+                <AutonomousFix analysisResult={result} />
               </TabsContent>
 
               <TabsContent value="aeo" className="mt-4">
