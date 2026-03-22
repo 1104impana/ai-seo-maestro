@@ -25,6 +25,7 @@ const AnalyzePage = () => {
   const [searchParams] = useSearchParams();
   const initialUrl = searchParams.get("url") || "";
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const handleResultUpdate = (updated: AnalysisResult) => setResult(updated);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
