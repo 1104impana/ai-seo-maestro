@@ -116,7 +116,7 @@ const AnalyzePage = () => {
               </TabsContent>
 
               <TabsContent value="fixes" className="mt-4">
-                <AutonomousFix analysisResult={result} />
+                <AutonomousFix analysisResult={result} onResultUpdate={handleResultUpdate} />
               </TabsContent>
 
               <TabsContent value="aeo" className="mt-4">
