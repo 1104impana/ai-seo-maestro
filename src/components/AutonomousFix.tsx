@@ -5,11 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { generateFixes, type Fix } from "@/lib/api/fixes";
+import { generateFixes, recalculateScores, type Fix } from "@/lib/api/fixes";
 import type { AnalysisResult } from "@/lib/api/seo";
 import {
   Wand2, Copy, Check, Undo2, Eye, Download,
-  Zap, AlertTriangle, Info, Loader2,
+  Zap, AlertTriangle, Info, Loader2, RefreshCw,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -29,15 +29,19 @@ const impactColors = {
 
 interface AutonomousFixProps {
   analysisResult: AnalysisResult;
+  onResultUpdate?: (updated: AnalysisResult) => void;
 }
 
-export function AutonomousFix({ analysisResult }: AutonomousFixProps) {
+export function AutonomousFix({ analysisResult, onResultUpdate }: AutonomousFixProps) {
   const [fixes, setFixes] = useState<Fix[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isApplying, setIsApplying] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
   const [appliedFixes, setAppliedFixes] = useState<Fix[]>([]);
   const [previewFix, setPreviewFix] = useState<Fix | null>(null);
-  const [changeLog, setChangeLog] = useState<Array<{ fix: Fix; timestamp: Date }>>([]);
+  const [changeLog, setChangeLog] = useState<Array<{ fix: Fix; timestamp: Date; action: string }>>([]);
+  const [scoreBreakdown, setScoreBreakdown] = useState<string | null>(null);
+  const [previousScores, setPreviousScores] = useState<{ seo: number; aeo: number; ranking: number } | null>(null);
   const { toast } = useToast();
 
   const handleGenerate = async () => {
@@ -60,17 +64,70 @@ export function AutonomousFix({ analysisResult }: AutonomousFixProps) {
   const selectAll = () => setFixes(prev => prev.map(f => ({ ...f, selected: true })));
   const deselectAll = () => setFixes(prev => prev.map(f => ({ ...f, selected: false })));
 
-  const applySelected = () => {
+  const applySelected = async () => {
     setIsApplying(true);
     const selected = fixes.filter(f => f.selected && !f.applied);
-    setTimeout(() => {
-      const newApplied = selected.map(f => ({ ...f, applied: true }));
-      setAppliedFixes(prev => [...prev, ...newApplied]);
-      setChangeLog(prev => [...prev, ...selected.map(f => ({ fix: f, timestamp: new Date() }))]);
-      setFixes(prev => prev.map(f => f.selected ? { ...f, applied: true } : f));
-      setIsApplying(false);
-      toast({ title: "Fixes applied!", description: `${selected.length} fixes applied successfully.` });
-    }, 1500);
+
+    // Mark fixes as applied
+    const newApplied = selected.map(f => ({ ...f, applied: true }));
+    setAppliedFixes(prev => [...prev, ...newApplied]);
+    setChangeLog(prev => [...prev, ...selected.map(f => ({ fix: f, timestamp: new Date(), action: "Applied" }))]);
+    setFixes(prev => prev.map(f => f.selected ? { ...f, applied: true } : f));
+    setIsApplying(false);
+
+    toast({ title: "Fixes applied!", description: `${selected.length} fixes applied. Recalculating scores...` });
+
+    // Now recalculate scores
+    setIsRecalculating(true);
+    setPreviousScores({
+      seo: analysisResult.seo_score,
+      aeo: analysisResult.aeo_score,
+      ranking: analysisResult.ranking_prediction,
+    });
+
+    try {
+      const allApplied = [...appliedFixes, ...newApplied];
+      const recalculated = await recalculateScores(analysisResult, allApplied);
+
+      // Build updated result
+      const updatedResult: AnalysisResult = {
+        ...analysisResult,
+        seo_score: recalculated.seo_score,
+        aeo_score: recalculated.aeo_score,
+        ranking_prediction: recalculated.ranking_prediction,
+        // Mark resolved issues as "success"
+        issues: analysisResult.issues.map(issue => {
+          if (recalculated.resolved_issue_titles?.includes(issue.title)) {
+            return { ...issue, severity: "success" as const };
+          }
+          return issue;
+        }),
+        // Merge updated meta if provided
+        meta: {
+          ...analysisResult.meta,
+          ...(recalculated.updated_meta || {}),
+        },
+        // Merge updated AEO if provided
+        aeo: {
+          ...analysisResult.aeo,
+          ...(recalculated.aeo || {}),
+        },
+      };
+
+      setScoreBreakdown(recalculated.score_breakdown);
+      onResultUpdate?.(updatedResult);
+
+      const seoDiff = recalculated.seo_score - analysisResult.seo_score;
+      const aeoDiff = recalculated.aeo_score - analysisResult.aeo_score;
+      toast({
+        title: "Scores updated! 🎉",
+        description: `SEO: ${seoDiff >= 0 ? "+" : ""}${seoDiff} → ${recalculated.seo_score} | AEO: ${aeoDiff >= 0 ? "+" : ""}${aeoDiff} → ${recalculated.aeo_score}`,
+      });
+    } catch (err: any) {
+      toast({ title: "Score recalculation failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsRecalculating(false);
+    }
   };
 
   const undoFix = (id: string) => {
@@ -79,8 +136,9 @@ export function AutonomousFix({ analysisResult }: AutonomousFixProps) {
     setChangeLog(prev => [...prev, {
       fix: { ...fixes.find(f => f.id === id)!, applied: false },
       timestamp: new Date(),
+      action: "Reverted",
     }]);
-    toast({ title: "Fix reverted", description: "Change has been undone." });
+    toast({ title: "Fix reverted", description: "Change has been undone. Click 'One-Click Fix' again to re-score." });
   };
 
   const copyAllFixes = () => {
@@ -94,7 +152,7 @@ export function AutonomousFix({ analysisResult }: AutonomousFixProps) {
 
   const exportFixes = () => {
     const selected = fixes.filter(f => f.selected);
-    const report = `# Autonomous Fix Report\n## URL: ${analysisResult.url}\n## Generated: ${new Date().toLocaleString()}\n\n${selected.map(f =>
+    const report = `# Autonomous Fix Report\n## URL: ${analysisResult.url}\n## Generated: ${new Date().toLocaleString()}\n\n${previousScores ? `## Score Changes\n| Metric | Before | After | Change |\n|--------|--------|-------|--------|\n| SEO Score | ${previousScores.seo} | ${analysisResult.seo_score} | +${analysisResult.seo_score - previousScores.seo} |\n| AEO Score | ${previousScores.aeo} | ${analysisResult.aeo_score} | +${analysisResult.aeo_score - previousScores.aeo} |\n| Ranking | ${previousScores.ranking} | ${analysisResult.ranking_prediction} | +${analysisResult.ranking_prediction - previousScores.ranking} |\n\n` : ""}${selected.map(f =>
       `### ${f.category}: ${f.title}\n**Impact:** ${f.impact}\n**Description:** ${f.description}\n\n**Before:**\n\`\`\`html\n${f.before_code || "(new addition)"}\n\`\`\`\n\n**After:**\n\`\`\`html\n${f.after_code}\n\`\`\`\n`
     ).join("\n---\n\n")}`;
     const blob = new Blob([report], { type: "text/markdown" });
@@ -117,7 +175,7 @@ export function AutonomousFix({ analysisResult }: AutonomousFixProps) {
         <div className="text-center space-y-2">
           <h3 className="text-lg font-semibold">Autonomous Fix</h3>
           <p className="text-sm text-muted-foreground max-w-md">
-            AI will generate concrete code fixes for all detected issues. Preview before applying, undo anytime.
+            AI will generate concrete code fixes for all detected issues. Preview before applying, undo anytime. Scores update automatically after applying.
           </p>
         </div>
         <Button onClick={handleGenerate} disabled={isGenerating} size="lg">
@@ -139,6 +197,37 @@ export function AutonomousFix({ analysisResult }: AutonomousFixProps) {
 
   return (
     <div className="space-y-4">
+      {/* Score Breakdown Banner */}
+      {scoreBreakdown && previousScores && (
+        <Card className="border-success/40 bg-success/5">
+          <CardContent className="py-3 flex items-center gap-3">
+            <Check className="h-5 w-5 text-success shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-success">Scores Updated</p>
+              <p className="text-xs text-muted-foreground">{scoreBreakdown}</p>
+            </div>
+            <div className="flex gap-4 text-xs font-mono">
+              <span>SEO: {previousScores.seo} → <strong className="text-success">{analysisResult.seo_score}</strong></span>
+              <span>AEO: {previousScores.aeo} → <strong className="text-success">{analysisResult.aeo_score}</strong></span>
+              <span>Rank: {previousScores.ranking} → <strong className="text-success">{analysisResult.ranking_prediction}</strong></span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recalculating indicator */}
+      {isRecalculating && (
+        <Card className="border-primary/40 bg-primary/5">
+          <CardContent className="py-3 flex items-center gap-3">
+            <RefreshCw className="h-5 w-5 text-primary animate-spin shrink-0" />
+            <div>
+              <p className="text-sm font-medium">Recalculating scores…</p>
+              <p className="text-xs text-muted-foreground">AI is re-analyzing with your applied fixes</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Toolbar */}
       <Card>
         <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
@@ -159,10 +248,10 @@ export function AutonomousFix({ analysisResult }: AutonomousFixProps) {
             <Button
               size="sm"
               onClick={applySelected}
-              disabled={isApplying || selectedCount === 0 || fixes.filter(f => f.selected && !f.applied).length === 0}
+              disabled={isApplying || isRecalculating || selectedCount === 0 || fixes.filter(f => f.selected && !f.applied).length === 0}
             >
-              {isApplying ? (
-                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Applying…</>
+              {isApplying || isRecalculating ? (
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {isRecalculating ? "Re-scoring…" : "Applying…"}</>
               ) : (
                 <><Zap className="h-3.5 w-3.5" /> One-Click Fix ({fixes.filter(f => f.selected && !f.applied).length})</>
               )}
@@ -251,8 +340,8 @@ export function AutonomousFix({ analysisResult }: AutonomousFixProps) {
                     <span className="text-muted-foreground text-xs font-mono">
                       {entry.timestamp.toLocaleTimeString()}
                     </span>
-                    <span className={entry.fix.applied ? "text-success" : "text-destructive"}>
-                      {entry.fix.applied ? "Applied" : "Reverted"}
+                    <span className={entry.action === "Applied" ? "text-success" : "text-destructive"}>
+                      {entry.action}
                     </span>
                     <span className="font-medium">{entry.fix.title}</span>
                   </div>

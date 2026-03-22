@@ -25,6 +25,7 @@ const AnalyzePage = () => {
   const [searchParams] = useSearchParams();
   const initialUrl = searchParams.get("url") || "";
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const handleResultUpdate = (updated: AnalysisResult) => setResult(updated);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -115,7 +116,7 @@ const AnalyzePage = () => {
               </TabsContent>
 
               <TabsContent value="fixes" className="mt-4">
-                <AutonomousFix analysisResult={result} />
+                <AutonomousFix analysisResult={result} onResultUpdate={handleResultUpdate} />
               </TabsContent>
 
               <TabsContent value="aeo" className="mt-4">
