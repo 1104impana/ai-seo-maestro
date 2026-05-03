@@ -231,37 +231,6 @@ const AnalyzePage = () => {
                 </Card>
               </TabsContent>
             </Tabs>
-
-            {/* Social Media Optimization Tips (text-only) */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Social Media Optimization Tips</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground space-y-2">
-                <ul className="list-disc pl-5 space-y-1.5">
-                  <li>Share content on platforms like Instagram, LinkedIn, and Twitter.</li>
-                  <li>Use relevant hashtags to improve visibility.</li>
-                  <li>Post consistently to build an audience.</li>
-                  <li>Optimize captions with target keywords.</li>
-                  <li>Add your website link in your bio.</li>
-                  <li>Encourage engagement (likes, comments, shares).</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Monetization (text-only) */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">How SEOPulse Can Generate Revenue</CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground space-y-2">
-                <p><span className="font-semibold text-foreground">Freemium Model:</span> Basic SEO analysis is free; advanced insights are paid.</p>
-                <p><span className="font-semibold text-foreground">Subscription Plans:</span> Monthly plans for detailed reports, automation, and tracking.</p>
-                <p><span className="font-semibold text-foreground">One-Click Optimization (Premium):</span> Paid feature for automated fixes on integrated websites.</p>
-                <p><span className="font-semibold text-foreground">API Access:</span> Developers pay to use SEO analysis via API.</p>
-                <p><span className="font-semibold text-foreground">Business Plans:</span> Agencies and startups can use bulk analysis features.</p>
-              </CardContent>
-            </Card>
           </div>
         )}
       </div>
