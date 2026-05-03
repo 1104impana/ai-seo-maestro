@@ -6,6 +6,9 @@ export interface Suggestion {
   description: string;
   impact: "high" | "medium" | "low";
   category: string;
+  what_is_wrong?: string;
+  why_it_matters?: string;
+  how_to_fix?: string;
 }
 
 const impactColors = {
@@ -30,6 +33,19 @@ export function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
       </CardHeader>
       <CardContent>
         <CardDescription className="text-sm leading-relaxed">{suggestion.description}</CardDescription>
+        {(suggestion.what_is_wrong || suggestion.why_it_matters || suggestion.how_to_fix) && (
+          <div className="mt-3 space-y-1.5 text-xs leading-relaxed border-l-2 border-primary/30 pl-3">
+            {suggestion.what_is_wrong && (
+              <p><span className="font-semibold">Issue:</span> {suggestion.what_is_wrong}</p>
+            )}
+            {suggestion.why_it_matters && (
+              <p><span className="font-semibold">Why it matters:</span> {suggestion.why_it_matters}</p>
+            )}
+            {suggestion.how_to_fix && (
+              <p><span className="font-semibold">Fix:</span> {suggestion.how_to_fix}</p>
+            )}
+          </div>
+        )}
         <span className="mt-3 inline-block rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
           {suggestion.category}
         </span>
