@@ -29,6 +29,9 @@ export interface AnalysisResult {
     description: string;
     impact: "high" | "medium" | "low";
     category: string;
+    what_is_wrong?: string;
+    why_it_matters?: string;
+    how_to_fix?: string;
   }>;
   aeo: {
     has_faq: boolean;
@@ -36,6 +39,13 @@ export interface AnalysisResult {
     direct_answers: number;
     featured_snippet_potential: number;
     extracted_questions: string[];
+  };
+  framework?: "React" | "Angular" | "Static";
+  rendering?: "CSR" | "SSR" | "Pre-rendered";
+  spa_checks?: {
+    content_visible: boolean;
+    dynamic_meta: boolean;
+    clean_urls: boolean;
   };
 }
 

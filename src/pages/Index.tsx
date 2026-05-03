@@ -23,6 +23,9 @@ const Index = () => {
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[1.08] text-foreground max-w-3xl">
             Optimize your site for search and AI engines
           </h1>
+          <p className="mt-3 text-sm text-muted-foreground italic max-w-xl">
+            This tool analyzes only on-page SEO. It does not check backlinks or off-page factors.
+          </p>
           <p className="mt-5 max-w-xl text-lg text-muted-foreground leading-relaxed">
             Crawl any URL, get instant SEO and Answer Engine Optimization scores, 
             AI-powered suggestions, and ranking predictions — all in one place.

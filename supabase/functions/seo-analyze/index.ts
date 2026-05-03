@@ -54,6 +54,7 @@ serve(async (req) => {
         url: formattedUrl,
         formats: ["markdown", "html", "links"],
         onlyMainContent: false,
+        waitFor: 2500,
       }),
     });
 
@@ -70,6 +71,25 @@ serve(async (req) => {
     const markdown = scrapeData.data?.markdown || scrapeData.markdown || "";
     const links = scrapeData.data?.links || scrapeData.links || [];
     const metadata = scrapeData.data?.metadata || scrapeData.metadata || {};
+
+    // Framework & rendering detection (runs after Firecrawl renders the page)
+    let framework: "React" | "Angular" | "Static" = "Static";
+    if (/data-reactroot|__NEXT_DATA__|_reactRootContainer|react-helmet/i.test(html)) framework = "React";
+    else if (/ng-version=|ng-app=|_nghost-|_ngcontent-/i.test(html)) framework = "Angular";
+
+    let rendering: "CSR" | "SSR" | "Pre-rendered" = "SSR";
+    if (framework !== "Static") {
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      const bodyInner = bodyMatch ? bodyMatch[1].replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<[^>]+>/g, "").trim() : "";
+      rendering = bodyInner.length < 200 ? "CSR" : "Pre-rendered";
+    }
+
+    // Basic SPA checks (only meaningful when React/Angular detected)
+    const spaChecks = {
+      content_visible: markdown.split(/\s+/).filter(Boolean).length > 100,
+      dynamic_meta: /<title[^>]*>[^<]+<\/title>/i.test(html) && /<meta[^>]*name=["']description["']/i.test(html),
+      clean_urls: !formattedUrl.includes("/#/") && !formattedUrl.includes("#!"),
+    };
 
     // Step 2: Extract basic SEO data from HTML
     const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
@@ -280,7 +300,7 @@ ${markdown.slice(0, 2000)}`;
 
     const result = {
       url: formattedUrl,
-      seo_score: aiResult?.seo_score ?? 50,
+      seo_score: 50,
       aeo_score: aiResult?.aeo_score ?? 40,
       ranking_prediction: aiResult?.ranking_prediction ?? 45,
       meta: {
@@ -305,7 +325,73 @@ ${markdown.slice(0, 2000)}`;
         featured_snippet_potential: 30,
         extracted_questions: [],
       },
+      framework,
+      rendering,
+      spa_checks: spaChecks,
     };
+
+    // ---- New rule-based scoring (replaces displayed seo_score) ----
+    const topKeyword = (keywords[0] || "").toLowerCase();
+    const titleLower = title.toLowerCase();
+    const descLower = description.toLowerCase();
+    const isHttps = formattedUrl.startsWith("https://");
+    const hasSchema = /<script[^>]+type=["']application\/ld\+json["']/i.test(html);
+    const hasViewport = /<meta[^>]+name=["']viewport["']/i.test(html);
+    const hasSitemapHint = /sitemap/i.test(html);
+    const hasRobotsNoindex = /<meta[^>]+name=["']robots["'][^>]*content=["'][^"']*noindex/i.test(html);
+    const cleanUrl = !/[?&=].{20,}/.test(formattedUrl) && !formattedUrl.includes("#!");
+
+    const breakdown = {
+      title: (title ? 5 : 0) + (title.length >= 30 && title.length <= 60 ? 5 : 0) + (topKeyword && titleLower.includes(topKeyword) ? 5 : 0), // /15
+      meta: (description ? 5 : 0) + (description.length >= 70 && description.length <= 160 ? 5 : 0) + (topKeyword && descLower.includes(topKeyword) ? 5 : 0), // /15
+      headings: (h1s.length === 1 ? 6 : h1s.length === 0 ? 0 : 2) + (h2s.length > 0 ? 4 : 0), // /10
+      content: (wordCount >= 300 ? 5 : Math.round((wordCount / 300) * 5)) + (wordCount >= 1000 ? 3 : 0) + (topKeyword && (markdown.toLowerCase().match(new RegExp(`\\b${topKeyword}\\b`, "g"))?.length || 0) >= 3 ? 2 : 0), // /10
+      images: allImages.length === 0 ? 5 : Math.round(((allImages.length - imagesWithoutAlt) / allImages.length) * 10), // /10
+      links: Math.min(internalLinks, 10), // /10
+      url: cleanUrl ? 5 : 2, // /5
+      technical: (isHttps ? 5 : 0) + (hasViewport ? 5 : 0), // /10 (speed approximated by render success)
+      schema: hasSchema ? 10 : 0, // /10
+      indexing: (hasSitemapHint ? 3 : 0) + (hasRobotsNoindex ? 0 : 2), // /5
+    };
+    const ruleScore = Math.min(
+      100,
+      breakdown.title + breakdown.meta + breakdown.headings + breakdown.content +
+      breakdown.images + breakdown.links + breakdown.url + breakdown.technical +
+      breakdown.schema + breakdown.indexing
+    );
+
+    let finalScore = ruleScore;
+    if (framework !== "Static") {
+      const spaScore =
+        (spaChecks.content_visible ? 40 : 0) +
+        (spaChecks.dynamic_meta ? 35 : 0) +
+        (spaChecks.clean_urls ? 25 : 0);
+      finalScore = Math.round(ruleScore * 0.6 + spaScore * 0.4);
+    }
+    result.seo_score = Math.max(0, Math.min(100, Math.round(finalScore)));
+
+    // Enhance suggestions with explanations (append-only, do not remove existing)
+    const enhanceSuggestion = (s: any) => {
+      if (s.what_is_wrong || s.why_it_matters || s.how_to_fix) return s;
+      return {
+        ...s,
+        what_is_wrong: s.title,
+        why_it_matters: `Search engines weigh ${s.category?.toLowerCase() || "this factor"} when ranking pages.`,
+        how_to_fix: s.description,
+      };
+    };
+    result.suggestions = (result.suggestions || []).map(enhanceSuggestion);
+    if (!description) {
+      result.suggestions.push({
+        title: "Missing meta description",
+        description: "Add a 150–160 character meta description including your target keyword.",
+        impact: "high",
+        category: "Meta",
+        what_is_wrong: "The page has no <meta name=\"description\"> tag.",
+        why_it_matters: "Search engines use it to understand and preview the page in results, affecting CTR.",
+        how_to_fix: "Add a <meta name=\"description\" content=\"...\"> tag of 150–160 characters that includes your primary keyword.",
+      } as any);
+    }
 
     console.log("Analysis complete for:", formattedUrl);
 

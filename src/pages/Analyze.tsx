@@ -70,11 +70,21 @@ const AnalyzePage = () => {
       <div className="flex flex-col gap-8">
         <div className="flex flex-col items-center gap-4">
           <h1 className="text-2xl font-bold animate-in-up">Analyze URL</h1>
+          <p className="text-xs text-muted-foreground italic text-center max-w-xl -mt-2">
+            This tool analyzes only on-page SEO. It does not check backlinks or off-page factors.
+          </p>
           <UrlInput onSubmit={handleAnalyze} isLoading={isLoading} />
         </div>
 
         {result && (
           <div className="flex flex-col gap-8 animate-in-up-delay-1">
+            {(result.framework || result.rendering) && (
+              <p className="text-xs text-muted-foreground -mb-4">
+                Framework: <span className="font-medium text-foreground">{result.framework || "Static"}</span>
+                {" · "}
+                Rendering: <span className="font-medium text-foreground">{result.rendering || "SSR"}</span>
+              </p>
+            )}
             {/* Scores row */}
             <div className="grid gap-6 sm:grid-cols-3">
               <Card className="flex items-center justify-center py-8">
@@ -221,6 +231,37 @@ const AnalyzePage = () => {
                 </Card>
               </TabsContent>
             </Tabs>
+
+            {/* Social Media Optimization Tips (text-only) */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Social Media Optimization Tips</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <ul className="list-disc pl-5 space-y-1.5">
+                  <li>Share content on platforms like Instagram, LinkedIn, and Twitter.</li>
+                  <li>Use relevant hashtags to improve visibility.</li>
+                  <li>Post consistently to build an audience.</li>
+                  <li>Optimize captions with target keywords.</li>
+                  <li>Add your website link in your bio.</li>
+                  <li>Encourage engagement (likes, comments, shares).</li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Monetization (text-only) */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">How SEOPulse Can Generate Revenue</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p><span className="font-semibold text-foreground">Freemium Model:</span> Basic SEO analysis is free; advanced insights are paid.</p>
+                <p><span className="font-semibold text-foreground">Subscription Plans:</span> Monthly plans for detailed reports, automation, and tracking.</p>
+                <p><span className="font-semibold text-foreground">One-Click Optimization (Premium):</span> Paid feature for automated fixes on integrated websites.</p>
+                <p><span className="font-semibold text-foreground">API Access:</span> Developers pay to use SEO analysis via API.</p>
+                <p><span className="font-semibold text-foreground">Business Plans:</span> Agencies and startups can use bulk analysis features.</p>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>
