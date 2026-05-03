@@ -1,11 +1,13 @@
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { BarChart3, Globe, Home, Search, Settings } from "lucide-react";
+import { BarChart3, Globe, Home, Search, Settings, DollarSign, TrendingUp } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Home", icon: Home },
   { href: "/analyze", label: "Analyze", icon: Search },
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
+  { href: "/pricing", label: "Pricing", icon: DollarSign },
+  { href: "/growth", label: "Growth", icon: TrendingUp },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
