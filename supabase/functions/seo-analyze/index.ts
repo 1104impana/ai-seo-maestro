@@ -87,7 +87,7 @@ serve(async (req) => {
     // Basic SPA checks (only meaningful when React/Angular detected)
     const spaChecks = {
       content_visible: markdown.split(/\s+/).filter(Boolean).length > 100,
-      dynamic_meta: Boolean((titleMatchExists(html)) && /<meta[^>]*name=["']description["']/i.test(html)),
+      dynamic_meta: /<title[^>]*>[^<]+<\/title>/i.test(html) && /<meta[^>]*name=["']description["']/i.test(html),
       clean_urls: !formattedUrl.includes("/#/") && !formattedUrl.includes("#!"),
     };
 
