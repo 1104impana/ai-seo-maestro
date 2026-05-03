@@ -54,6 +54,7 @@ serve(async (req) => {
         url: formattedUrl,
         formats: ["markdown", "html", "links"],
         onlyMainContent: false,
+        waitFor: 2500,
       }),
     });
 
@@ -70,6 +71,25 @@ serve(async (req) => {
     const markdown = scrapeData.data?.markdown || scrapeData.markdown || "";
     const links = scrapeData.data?.links || scrapeData.links || [];
     const metadata = scrapeData.data?.metadata || scrapeData.metadata || {};
+
+    // Framework & rendering detection (runs after Firecrawl renders the page)
+    let framework: "React" | "Angular" | "Static" = "Static";
+    if (/data-reactroot|__NEXT_DATA__|_reactRootContainer|react-helmet/i.test(html)) framework = "React";
+    else if (/ng-version=|ng-app=|_nghost-|_ngcontent-/i.test(html)) framework = "Angular";
+
+    let rendering: "CSR" | "SSR" | "Pre-rendered" = "SSR";
+    if (framework !== "Static") {
+      const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+      const bodyInner = bodyMatch ? bodyMatch[1].replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<[^>]+>/g, "").trim() : "";
+      rendering = bodyInner.length < 200 ? "CSR" : "Pre-rendered";
+    }
+
+    // Basic SPA checks (only meaningful when React/Angular detected)
+    const spaChecks = {
+      content_visible: markdown.split(/\s+/).filter(Boolean).length > 100,
+      dynamic_meta: Boolean((titleMatchExists(html)) && /<meta[^>]*name=["']description["']/i.test(html)),
+      clean_urls: !formattedUrl.includes("/#/") && !formattedUrl.includes("#!"),
+    };
 
     // Step 2: Extract basic SEO data from HTML
     const titleMatch = html.match(/<title[^>]*>(.*?)<\/title>/i);
